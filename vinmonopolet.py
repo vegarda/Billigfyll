@@ -16,6 +16,7 @@ class Vinmonopolet(threading.Thread):
     volum = "NULL"
     varenummer = "NULL"
     varetype = "NULL"
+    undervaretype = "NULL"
     produktutvalg = "NULL"
     farge = "NULL"
     lukt = "NULL"
@@ -30,21 +31,22 @@ class Vinmonopolet(threading.Thread):
     url = "NULL"
     starttime = 0.0
 
-    def __init__(self, link):
+    def __init__(self, link, varetype):
         super(Vinmonopolet, self).__init__()
         self.link = link
-        self.starttime = time.time()
-        print(self.starttime)
+        self.varetype = varetype
+        #self.starttime = time.time()
+        #print(self.starttime)
 
         self.site = 'http://www.vinmonopolet.no'
-        vareutvalg = self.urlopen2(self.site + '/vareutvalg/').read()
-        vareutvalgDOM = lxml.html.fromstring(vareutvalg)
+        #vareutvalg = self.urlopen2(self.site + '/vareutvalg/').read()
+        #vareutvalgDOM = lxml.html.fromstring(vareutvalg)
 
-        self.antall = int(re.sub(r'\D', '', vareutvalgDOM.xpath('//div[@id="selectView"]/p/strong')[0].text))
-        print(self.antall)
+        #self.antall = int(re.sub(r'\D', '', vareutvalgDOM.xpath('//div[@id="selectView"]/p/strong')[0].text))
+        #print(self.antall)
 
         #self.file = open('database.sql', 'w', encoding='utf-8')
-        #self.file.write("CREATE TABLE vareliste(varenavn VARCHAR(255), pris decimal(6,2), volum int, varenummer int, varetype VARCHAR(255), produktutvalg VARCHAR(255), farge VARCHAR(255), lukt VARCHAR(255), smak VARCHAR(255), land  VARCHAR(255), prosent decimal(10,2), alkohol float(10,6), aargang int, metode VARCHAR(255), raastoff VARCHAR(255), produsent VARCHAR(255), url VARCAHR(2047));\n\n")
+        #self.file.write("CREATE TABLE vareliste(varenavn VARCHAR(255), pris decimal(6,2), volum int, varenummer int, varetype VARCHAR(255), undervaretype VARCHAR(255), produktutvalg VARCHAR(255), farge VARCHAR(255), lukt VARCHAR(255), smak VARCHAR(255), land  VARCHAR(255), prosent decimal(10,2), alkohol float(10,6), aargang int, metode VARCHAR(255), raastoff VARCHAR(255), produsent VARCHAR(255), url VARCHAR(2047));\n\n")
 
         self.htmlparser = html.parser.HTMLParser()
     
@@ -63,6 +65,7 @@ class Vinmonopolet(threading.Thread):
         volum = self.volum
         varenummer = self.varenummer
         varetype = self.varetype
+        undervaretype = self.undervaretype
         produktutvalg = self.produktutvalg
         farge = self.farge
         lukt = self.lukt
@@ -77,23 +80,22 @@ class Vinmonopolet(threading.Thread):
         url = self.url
 
         print(vareutvalglink.text)
-        varetype = self.urlopen2(self.site + vareutvalglink.attrib['href']).read()
+        vareHTML = self.urlopen2(self.site + vareutvalglink.attrib['href']).read()
         self.file = open(vareutvalglink.text + '.sql', 'w', encoding='utf-8')
-        varetypeDOM = lxml.html.document_fromstring(varetype)
-        vareLinks = varetypeDOM.xpath('//tbody/tr/td/h3/a')
+        vareDOM = lxml.html.document_fromstring(vareHTML)
+        vareLinks = vareDOM.xpath('//tbody/tr/td/h3/a')
         
         neste = 1
         url = self.site + vareutvalglink.attrib['href']
         while(neste == 1):
-            varetype = self.urlopen2(url).read()
-            varetypeDOM = lxml.html.fromstring(varetype)
-            vareLinks = varetypeDOM.xpath('//tbody/tr/td/h3/a')      
+            varedataHTML = self.urlopen2(url).read()
+            varedataDOM = lxml.html.fromstring(varedataHTML)
+            vareLinks = varedataDOM.xpath('//tbody/tr/td/h3/a')      
             for vareLink in vareLinks:
                 varenavn = self.htmlparser.unescape(vareLink.text).encode('utf-8')
                 varenavn = re.sub(r"\"", "\\\"", varenavn.decode())
-                print((self.lagttil + 1), varenavn)
                 varenavn = '"' + varenavn + '"'
-                url = vareLink.attrib['href']
+                url =  re.sub(r";.+=", "", vareLink.attrib['href'])
                 vare = self.urlopen2(url).read()
                 vareDOM = lxml.html.fromstring(vare)
                 volum = vareDOM.xpath('//h3/em[1]')[0].text
@@ -119,8 +121,8 @@ class Vinmonopolet(threading.Thread):
                         varenummer = '"' + varenummer + '"'
 
                     if "Varetype" in data:
-                        varetype = re.sub(r"Varetype: ", "", data)
-                        varetype = '"' + varetype + '"'
+                        undervaretype = re.sub(r"Varetype: ", "", data)
+                        undervaretype = '"' + undervaretype + '"'
                        
                     if "Produktutvalg" in data:
                         produktutvalg = re.sub(r"Produktutvalg: ", "", data)
@@ -170,14 +172,14 @@ class Vinmonopolet(threading.Thread):
                         produsent = re.sub(r"\"", "\\\"", produsent)
                         produsent = '"' + produsent + '"'
 
-                q = "INSERT INTO billigfyll.vareliste VALUES (" + varenavn + ", " + pris + ", " + volum + ", " + varenummer + ", " + varetype + ", " + produktutvalg + ", " + farge + ", " + lukt + ", " + smak + ", " + land + ", " + prosent + ", " + str(alkohol) + ", " + aargang + ", " + metode + ", " + raastoff + ", " + produsent + ", \"" + url + "\");"
+                q = "INSERT INTO billigfyll.vareliste VALUES (" + varenavn + ", " + pris + ", " + volum + ", " + varenummer + ", \"" + varetype + "\", " + undervaretype + ", " + produktutvalg + ", " + farge + ", " + lukt + ", " + smak + ", " + land + ", " + prosent + ", " + str(alkohol) + ", " + aargang + ", " + metode + ", " + raastoff + ", " + produsent + ", \"" + url + "\");"
                 self.file.write(q + "\n")
                 
                 varenavn = "NULL"
                 pris = "NULL"
                 volum = "NULL"
                 varenummer = "NULL"
-                varetype = "NULL"
+                undervaretype = "NULL"
                 produktutvalg = "NULL"
                 farge = "NULL"
                 lukt = "NULL"
@@ -192,12 +194,12 @@ class Vinmonopolet(threading.Thread):
                 url = "NULL"
                 
                 #timer
-                lagttil = lagttil + 1
+                self.lagttil = self.lagttil + 1
                 #currenttime = time.time()
                 #est = (self.antall - lagttil)*(currenttime - self.starttime)/lagttil
                 #print(est)
             #if page contains next
-            varetypeNeste = varetypeDOM.xpath('//td/a[starts-with(text(), \'Neste\')]')
+            varetypeNeste = varedataDOM.xpath('//td/a[starts-with(text(), \'Neste\')]')
             if len(varetypeNeste) > 0:
                 url = self.site + varetypeNeste[0].attrib['href']
             if len(varetypeNeste) == 0:
@@ -218,7 +220,8 @@ def main():
     workers = []
     i = 1
     for vareutvalglink in vareutvalgLinks:
-        worker = Vinmonopolet(vareutvalglink)
+        worker = Vinmonopolet(vareutvalglink, vareutvalglink.text)
+        worker.setName(vareutvalglink.text)
         worker.daemon = True
         worker.start()
         workers.append(worker)

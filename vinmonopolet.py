@@ -6,6 +6,8 @@ import lxml.etree
 import html.parser
 import re
 import time
+import glob
+import os
 
 class Vinmonopolet(threading.Thread):
     link = "http"
@@ -212,7 +214,23 @@ def urlopen2(url):
     except error.URLError:
         self.urlopen2(url)
 
+def getSQLFiles():
+    files = [file for file in glob.glob("*.sql")]
+    return files
+
+def removeOldSQLFiles():
+    for sql in glob.glob("*.sql"):
+        os.remove(sql)
+
+def mergeFiles():
+    filenames = getSQLFiles()
+    with open('./alle.sql', 'w') as outfile:
+        for fname in filenames:
+            with open(fname) as infile:
+                for line in infile:
+                    outfile.write(line)
 def main():
+    removeOldSQLFiles()
     site = 'http://www.vinmonopolet.no'
     vareutvalg = urlopen2(site + '/vareutvalg/').read()
     vareutvalgDOM = lxml.html.fromstring(vareutvalg)
@@ -229,6 +247,7 @@ def main():
     for worker in workers:
         worker.join()
         print("join")
+    mergeFiles()
 
 if __name__ == '__main__':
     main()

@@ -224,7 +224,7 @@ def removeOldSQLFiles():
 
 def mergeFiles():
     filenames = getSQLFiles()
-    with open('./alle.sql', 'w') as outfile:
+    with open('./alle.sql', 'w', encoding="utf8") as outfile:
         for fname in filenames:
             with open(fname) as infile:
                 for line in infile:
